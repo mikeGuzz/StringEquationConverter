@@ -1,4 +1,5 @@
 ﻿using StringEquationConverter.FExceptions;
+using StringEquationConverter.NodeTypes.Operators.BinaryOperators;
 using StringEquationConverter.ValueTypes;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ namespace StringEquationConverter.NodeTypes.Operators.UnaryOperators
         public override FFraction ToFraction()
         {
             if (LeftOperand is null)
-                throw new FInvalidOperationException();
+                throw new FInvalidOperationException($"{GetType()}: operator operand missing.");
             return LeftOperand.ToFraction() * -1d;
         }
 

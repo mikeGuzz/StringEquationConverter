@@ -20,7 +20,7 @@ namespace StringEquationConverter.NodeTypes.Operators.BinaryOperators
         {
             if (LeftOperand is null || RightOperand is null)
             {
-                throw new FInvalidOperationException($"{nameof(Multiply)}: operator operand missing.");
+                throw new FInvalidOperationException($"{GetType()}: operator operand missing.");
             }
             var temp = LeftOperand.ToFraction() * RightOperand.ToFraction();
             return temp;

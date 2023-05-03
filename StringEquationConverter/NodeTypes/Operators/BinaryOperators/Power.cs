@@ -19,7 +19,7 @@ namespace StringEquationConverter.NodeTypes.Operators.BinaryOperators
         public override FFraction ToFraction()
         {
             if (LeftOperand is null || RightOperand is null)
-                throw new FInvalidOperationException($"{nameof(Power)}: operator operand missing.");
+                throw new FInvalidOperationException($"{GetType()}: operator operand missing.");
             return LeftOperand.ToFraction().Power(RightOperand);
         }
 

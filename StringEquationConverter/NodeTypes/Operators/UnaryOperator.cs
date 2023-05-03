@@ -30,31 +30,14 @@ namespace StringEquationConverter.NodeTypes.Operators
 
         public virtual bool? SAddOperand(FHValue operand)
         {
-            //unOp.IsEmpty()
             if (LeftOperand is UnaryOperator unOp)
+                return unOp.SAddOperand(operand);
+            if (LeftOperand is null)
             {
-                if(unOp.IsEmpty())
-                    return unOp.SAddOperand(operand);
-                //else if(operand is UnaryOperator unOperand)
-                //{
-                //    unOperand.SAddOperand(unOp);
-                //    LeftOperand = operand;
-                //    return true;
-                //}
-                else
-                    return false;
+                LeftOperand = operand;
+                return true;
             }
-            if(LeftOperand is not null)
-            {
-                //if(operand is UnaryOperator)
-                //{
-                //    ((UnaryOperator)operand).SAddOperand(this);
-                //    return null;
-                //}
-                return false;
-            }
-            LeftOperand = operand;
-            return true;
+            return false;
         }
 
         public abstract char GetOperatorSing();

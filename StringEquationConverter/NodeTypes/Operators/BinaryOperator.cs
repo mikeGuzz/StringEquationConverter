@@ -28,30 +28,28 @@ namespace StringEquationConverter.NodeTypes.Operators
             if (res != false)
                 return res;
 
-            if (IsDeepEmpty() && operand is BinaryOperator biOperand)//встраивание оператора
+            if (operand is BinaryOperator biOperand && IsDeepEmpty())//встраивание оператора
             {
-                // перехватываем
+                //если операнд бинарный оператор, и его приориетность такая же или ниже, чем наша,
+                //тогда алгоритм помещает в левый операнд операнда (при условии что он пустой)
+                //и меняет его местами (это происходит вне этого алгоритма, а если быть
+                //точнее то на стороне вызывающей функции. Для того, чтобы указать что
+                //мы хотим перемещение мы возвращаем null)
+                //
                 if (biOperand.GetPriority() == GetPriority() || biOperand.GetPriority() < GetPriority())
                 {
-                    if (biOperand.RightOperand is not null)
-                    {
-                        RightOperand = biOperand.RightOperand;
-                        biOperand.RightOperand = null;
-                    }
-                    if (biOperand.LeftOperand is not null)
-                    {
-                        LeftOperand = biOperand.LeftOperand;
-                        biOperand.LeftOperand = null;
-                    }
                     biOperand.LeftOperand = this;
                     return null;
                 }
-                else// встраиваем
+                else//в ином случае - встраиваем
                 {
-                    if (RightOperand is UnaryOperator op)
+                    if (RightOperand is UnaryOperator)
                     {
-                        if (op.SAddOperand(operand) == null)
+                        res = ((UnaryOperator)RightOperand).SAddOperand(operand);
+                        if (res is null)
                             RightOperand = operand;
+                        else if (res == false)
+                            return res;
                     }
                     else
                         RightOperand = operand;
@@ -64,21 +62,15 @@ namespace StringEquationConverter.NodeTypes.Operators
                 return true;
             }
             if (RightOperand is not UnaryOperator)
-                //return false;
-            {
-                if (operand is UnaryOperator)
-                {
-                    res = ((UnaryOperator)operand).SAddOperand(RightOperand);
-                    RightOperand = operand;
-                    return res;
-                }
                 return false;
-            }
-            if (((UnaryOperator)RightOperand).SAddOperand(operand) is null)
+
+            res = ((UnaryOperator)RightOperand).SAddOperand(operand);
+            if (res is null)
             {
                 RightOperand = operand;
+                return true;
             }
-            return true;
+            return res;
         }
 
         public override bool IsEmpty()
@@ -95,32 +87,6 @@ namespace StringEquationConverter.NodeTypes.Operators
                 return op.IsDeepEmpty();
             return IsEmpty();
         }
-
-        //public bool SAddOperatorAsOperand(BinaryOperator op)
-        //{
-        //    if (op.GetPriority() == GetPriority())
-        //    {
-        //        Move(op);
-        //        op.SAddOperand(this);
-        //        return true;
-        //    }
-        //    else
-        //    {
-        //        if(op.GetPriority() > GetPriority())
-        //        {
-        //            if (RightOperand is BinaryOperator biRight)
-        //                biRight.SAddOperatorAsOperand(op);
-        //            SAddOperand(op);
-        //        }
-        //        else
-        //        {
-        //            Move(op);
-        //            op.SAddOperand(this);
-        //            return true;
-        //        }
-        //    }
-        //    return false;
-        //}
 
         public abstract int GetPriority();
 

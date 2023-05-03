@@ -16,7 +16,7 @@ namespace StringEquationConverter.NodeTypes.Operators.UnaryOperators
         public override FFraction ToFraction()
         {
             if (LeftOperand is null)
-                throw new FInvalidOperationException();
+                throw new FInvalidOperationException($"{nameof(Percentage)}: operator operand missing.");
             return LeftOperand.ToFraction() / 100d;
         }
 

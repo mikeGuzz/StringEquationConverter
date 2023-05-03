@@ -46,32 +46,19 @@ namespace StringEquationConverter
             ContainerNode curr_cont = new ContainerNode();
             TreeNode? temp = null;
 
-            //если программа ожидает на операнд
-            bool nOperand = false;
-
-            var chForN = () =>
-            {
-                if (nOperand)
-                    throw new FInvalidOperationException("Operator operand missing.");
-            };
+            var contains = () => valueBuilder.IsBuildedValue() || temp is not null;
 
             var addN = () =>
             {
-                var flag = false;
                 if (valueBuilder.IsBuildedValue())
                 {
                     curr_cont.AddNode(GetNode(valueBuilder));
-                    flag = true;
                 }
                 if (temp is not null)
                 {
                     curr_cont.AddNode(temp);
                     temp = null;
-                    flag = true;
                 }
-
-                if(!flag)
-                    chForN();
             };
 
             Node = curr_cont;
@@ -95,21 +82,20 @@ namespace StringEquationConverter
                         default:
                             throw new FInvalidOperationException(i, $"Invalid operation: '{s[i]}'.");
                     }
-                    //addN();
-                    //chForN();
-                    nOperand = false;
                 }
                 else if (s[i].IsBinaryOperator())
                 {
-                    //chForN();
                     switch (s[i])
                     {
                         case '-':
-                            //curr_cont.AddNode(new Negative());
-                            curr_cont.AddNode(new Subtract());
+                            if(!contains())
+                                curr_cont.AddNode(new Negative());
+                            else
+                                curr_cont.AddNode(new Subtract());
                             break;
                         case '+':
-                            curr_cont.AddNode(new Add());
+                            if (contains())
+                                curr_cont.AddNode(new Add());
                             break;
                         case '*':
                             curr_cont.AddNode(new Multiply());
@@ -124,7 +110,6 @@ namespace StringEquationConverter
                             throw new FInvalidOperationException(i, $"Invalid operation: '{s[i]}'.");
                     }
                     addN();
-                    nOperand = true;
                 }
                 else if (s[i] == '(')
                 {

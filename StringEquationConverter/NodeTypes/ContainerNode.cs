@@ -37,24 +37,43 @@ namespace StringEquationConverter.NodeTypes
             if (Node is null)
             {
                 Node = subNode;
+                return;
             }
-            else if (Node is UnaryOperator unaryOp)
+            if(Node is BinaryOperator)
             {
-                var res = unaryOp.SAddOperand(subNode);
+                var res = ((UnaryOperator)Node).SAddOperand(subNode);
                 if (res == true)
                     return;
-                if(res is null)
+                if (res is null)
                     Node = subNode;
                 else
                     throw ActionNotFoundException();
             }
-            else if (subNode is UnaryOperator subOp)
+            else if(Node is UnaryOperator) 
             {
-                subOp.SAddOperand(Node);
-                Node = subOp;
+                if (subNode is BinaryOperator)
+                {
+                    ((BinaryOperator)subNode).SAddOperand(Node);
+                    Node = subNode;
+                }
+                else 
+                {
+                    var res = ((UnaryOperator)Node).SAddOperand(subNode);
+                    if (res == true)
+                        return;
+                    if (res is null)
+                        Node = subNode;
+                    else
+                        throw ActionNotFoundException();
+                }
             }
             else
-                throw ActionNotFoundException();
+            {
+                if(subNode is not UnaryOperator)
+                    throw ActionNotFoundException();
+                ((BinaryOperator)subNode).SAddOperand(Node);
+                Node = subNode;
+            }
         }
 
         private FException ActionNotFoundException() => new FInvalidOperationException("Action not found.");
@@ -68,7 +87,7 @@ namespace StringEquationConverter.NodeTypes
 
         public override string ToString()
         {
-            var str = Node is null ? "null" : ToFraction().ToString();
+            var str = Node is null ? "null" : Node.ToString();
             return $"{{{str}}}";
         }
     }
