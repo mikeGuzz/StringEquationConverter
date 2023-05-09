@@ -5,16 +5,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace StringEquationConverter.NodeTypes.Operators
 {
     public abstract class UnaryOperator : TreeNode
     {
-        public FHValue? LeftOperand { get; set; }
+        public IFHValue? LeftOperand { get; set; }
 
         public UnaryOperator() { }
 
-        public UnaryOperator(FHValue? leftOperand) { LeftOperand = leftOperand; }
+        public UnaryOperator(IFHValue? leftOperand) { LeftOperand = leftOperand; }
 
         public virtual bool IsEmpty()
         {
@@ -28,7 +29,12 @@ namespace StringEquationConverter.NodeTypes.Operators
             return IsEmpty();
         }
 
-        public virtual bool? SAddOperand(FHValue operand)
+        public override FFraction? Simplify()
+        {
+            return LeftOperand is null ? null : (LeftOperand.Simplify() is not null ? ToFraction() : null);
+        }
+
+        public virtual bool? SAddOperand(IFHValue operand)
         {
             if (LeftOperand is UnaryOperator unOp)
                 return unOp.SAddOperand(operand);

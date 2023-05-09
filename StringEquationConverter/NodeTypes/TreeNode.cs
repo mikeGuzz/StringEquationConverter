@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 
 namespace StringEquationConverter.NodeTypes
 {
-    public abstract class TreeNode : FHValue
+    public abstract class TreeNode : IFHValue
     {
         public abstract FFraction ToFraction();
+
+        public abstract FFraction? Simplify();
     }
 }

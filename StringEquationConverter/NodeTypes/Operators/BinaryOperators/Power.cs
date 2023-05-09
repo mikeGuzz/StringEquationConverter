@@ -12,9 +12,9 @@ namespace StringEquationConverter.NodeTypes.Operators.BinaryOperators
     {
         public Power() : base() { }
 
-        public Power(FHValue left) : base(left) { }
+        public Power(IFHValue left) : base(left) { }
 
-        public Power(FHValue left, FHValue right) : base(left, right) { }
+        public Power(IFHValue left, IFHValue right) : base(left, right) { }
 
         public override FFraction ToFraction()
         {

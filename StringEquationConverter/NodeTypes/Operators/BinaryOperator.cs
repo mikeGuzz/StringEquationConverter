@@ -11,31 +11,39 @@ namespace StringEquationConverter.NodeTypes.Operators
 {
     public abstract class BinaryOperator : UnaryOperator
     {
-        public FHValue? RightOperand { get; set; }
+        public IFHValue? RightOperand { get; set; }
 
         public BinaryOperator() : base() { }
 
-        public BinaryOperator(FHValue left) : base(left) { }
+        public BinaryOperator(IFHValue left) : base(left) { }
 
-        public BinaryOperator(FHValue left, FHValue right) : base(left)
+        public BinaryOperator(IFHValue left, IFHValue right) : base(left)
         {
             RightOperand = right;
         }
 
-        public override bool? SAddOperand(FHValue operand)
+        public override FFraction? Simplify()
+        {
+            var tL = LeftOperand?.Simplify();
+            var tR = RightOperand?.Simplify();
+            if(tL is not null)
+                LeftOperand = tL;
+            if(tR is not null)
+                RightOperand = tR;
+            return (tL is not null && tR is not null) ? ToFraction() : null;
+        }
+
+        public override bool? SAddOperand(IFHValue operand)
         {
             var res = base.SAddOperand(operand);
             if (res != false)
                 return res;
 
-            if (operand is BinaryOperator biOperand && IsDeepEmpty())//встраивание оператора
+            if (operand is BinaryOperator biOperand && IsDeepEmpty())
             {
-                //если операнд бинарный оператор, и его приориетность такая же или ниже, чем наша,
-                //тогда алгоритм помещает в левый операнд операнда (при условии что он пустой)
-                //и меняет его местами (это происходит вне этого алгоритма, а если быть
-                //точнее то на стороне вызывающей функции. Для того, чтобы указать что
-                //мы хотим перемещение мы возвращаем null)
-                //
+                //если операнд бинарный оператор, и его приориетность такая же или ниже,
+                //тогда алгоритм помещает в левый операнд операнда
+                //и меняет его местами (это происходит на стороне вызывающей функции).
                 if (biOperand.GetPriority() == GetPriority() || biOperand.GetPriority() < GetPriority())
                 {
                     biOperand.LeftOperand = this;

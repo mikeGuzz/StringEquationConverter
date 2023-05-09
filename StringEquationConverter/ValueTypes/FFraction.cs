@@ -1,14 +1,16 @@
 ﻿using StringEquationConverter.FExceptions;
+using StringEquationConverter.NodeTypes.Operators.BinaryOperators;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace StringEquationConverter.ValueTypes
 {
-    public struct FFraction : FHValue, IComparable
+    public struct FFraction : IFHValue, IComparable
     {
         private double? den;
 
@@ -59,7 +61,7 @@ namespace StringEquationConverter.ValueTypes
         public static FFraction operator /(FFraction a, FFraction b)
         {
             if (b.Num == 0d)
-                throw new FArgmentException("Divide by zero.");
+                throw new FDivideByZeroException("Divide by zero.");
             return new FFraction(a.Num * b.Den, b.Num * a.Den);
         }
         public static FFraction operator /(FFraction a, double b) => a / new FFraction(b, null);
@@ -79,12 +81,15 @@ namespace StringEquationConverter.ValueTypes
 
         public FFraction Power(double power) => new FFraction(Math.Pow(Num, power), Math.Pow(Den, power));
 
-        public FFraction Power(FHValue power)
+        public FFraction Power(IFHValue power)
         {
             //(a/b)^(x/y) = a^(x/y)/b^(x/y) = ((a^(1/y))^x)/((b^(1/y))^x)
             var y = power.ToFraction().D;
             return new FFraction(Math.Pow(Num, y), Math.Pow(Den, y));
         }
+        public FFraction Absolute() => new FFraction(Math.Abs(Num), Den);
+        public FFraction Sqrt() => new FFraction(Math.Sqrt(Num), Math.Sqrt(Den));
+        public FFraction Cbrt() => new FFraction(Math.Cbrt(Num), Math.Cbrt(Den));
 
         public double GreatestCommonDivisor()
         {
@@ -103,16 +108,15 @@ namespace StringEquationConverter.ValueTypes
 
         public double LeastCommonMultiple() => Num * Den / GreatestCommonDivisor();
 
-        public FFraction Simplify()
+        public FFraction? Simplify()
         {
             var gcd = GreatestCommonDivisor();
-            return new FFraction(Num / gcd, Den / gcd);
+            return new FFraction(Num /= gcd, Den /= gcd);
         }
 
         public override string ToString()
         {
-            var sF = Simplify();
-            return (sF.den is null || sF.Den == 1d) ? $"{sF.Num}" : $"({sF.Num}/{sF.Den})";
+            return (den is null) ? $"{Num}" : $"({Num}/{Den})";
         }
 
         public override int GetHashCode()

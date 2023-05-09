@@ -11,7 +11,7 @@ namespace StringEquationConverter.NodeTypes.Operators.UnaryOperators
     public class Percentage : UnaryOperator
     {
         public Percentage() : base() { }
-        public Percentage(FHValue operand) : base(operand) { }
+        public Percentage(IFHValue operand) : base(operand) { }
 
         public override FFraction ToFraction()
         {

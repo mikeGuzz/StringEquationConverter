@@ -7,8 +7,10 @@ using StringEquationConverter.ValueTypes;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml.Linq;
 
 namespace StringEquationConverter
 {
@@ -36,32 +38,86 @@ namespace StringEquationConverter
             Rebuild();
         }
 
+        //the super class FuncContainer is used to store the values
+        //that are needed at the end of the function reading.
+        private class FuncContainer
+        {
+            public readonly string FuncName;
+            public readonly int StartBN;
+            public readonly Stack<ContainerNode> ArgsCont;
+            public readonly ContainerNode ParentCont;
+            public readonly FuncContainer? ParentFuncCont;
+
+            public FuncContainer(string funcName, int startBN, ContainerNode parent, FuncContainer? parentFuncCont)
+            {
+                FuncName = funcName;
+                StartBN = startBN;
+                ArgsCont = new Stack<ContainerNode>();
+                ParentCont = parent;
+                ParentFuncCont = parentFuncCont;
+            }
+
+            public ContainerNode Next()
+            {
+                ArgsCont.Push(new ContainerNode());
+                return ArgsCont.Peek();
+            }
+
+            public FunctionNode GetNode()
+            {
+                var i = FFunction.IndexOf(FuncName, ArgsCont.Count);
+                if(i == -1)
+                    throw new FInvalidOperationException($"{FuncName}: function with {ArgsCont.Count} arguments was not found.");
+                return new FunctionNode(FFunction.Funcs[i], ArgsCont.Select(i =>
+                {
+                    if (i.Node is null)
+                        throw new FInvalidOperationException($"{FuncName}: syntax error.");
+                    return i;
+                }).Reverse().ToArray());
+            }
+        }
+
         private void Rebuild()
         {
             if (string.IsNullOrWhiteSpace(Function))
                 throw new FArgmentException($"'{nameof(Function)}' is empty.");
 
             ref string s = ref function;
+
             StringBuilder valueBuilder = new StringBuilder();
             ContainerNode curr_cont = new ContainerNode();
-            TreeNode? temp = null;
+            TreeNode? tempValue = null;
+            FuncContainer? tempFuncCont = null;
+            int bN = 0;
 
-            var contains = () => valueBuilder.IsBuildedValue() || temp is not null;
+            Node = curr_cont;
 
-            var addN = () =>
+            bool contains() => valueBuilder.IsBuildedValue() || tempValue is not null;
+            void addN()
             {
                 if (valueBuilder.IsBuildedValue())
                 {
                     curr_cont.AddNode(GetNode(valueBuilder));
                 }
-                if (temp is not null)
+                if (tempValue is not null)
                 {
-                    curr_cont.AddNode(temp);
-                    temp = null;
+                    curr_cont.AddNode(tempValue);
+                    tempValue = null;
                 }
-            };
-
-            Node = curr_cont;
+            }
+            void enterFunc()
+            {
+                valueBuilder.Clear();
+                curr_cont = tempFuncCont.Next();
+                curr_cont.ParentContainer = curr_cont;
+            }
+            void leaveFunc()
+            {
+                addN();
+                curr_cont = tempFuncCont.ParentCont;
+                tempValue = tempFuncCont.GetNode();
+                tempFuncCont = tempFuncCont.ParentFuncCont;
+            }
 
             for (int i = 0; i < s.Length; i++)
             {
@@ -70,6 +126,16 @@ namespace StringEquationConverter
 
                 if (s[i] == '.' || char.IsDigit(s[i]))
                 {
+                    valueBuilder.Append(s[i]);
+                }
+                else if(char.IsLetter(s[i]) || s[i] == '_')
+                {
+                    //if the variable is preceded by a number - implicit multiplication (e.g. 2a => 2*a)
+                    if (double.TryParse(valueBuilder.ToString(), out var _))
+                    {
+                        curr_cont.AddNode(new Multiply());
+                        curr_cont.AddNode(GetNode(valueBuilder));
+                    }
                     valueBuilder.Append(s[i]);
                 }
                 else if (s[i].IsUnaryOperator())
@@ -88,12 +154,13 @@ namespace StringEquationConverter
                     switch (s[i])
                     {
                         case '-':
-                            if(!contains())
+                            if (!contains())//if it is an implicit multiplication by -1 (e.g. -a)
                                 curr_cont.AddNode(new Negative());
-                            else
+                            else//if it is a binary subtraction operation (e.g. a-b)
                                 curr_cont.AddNode(new Subtract());
                             break;
                         case '+':
+                            //if + is used as a binary operator (e.g. a+b, not +b)
                             if (contains())
                                 curr_cont.AddNode(new Add());
                             break;
@@ -113,92 +180,112 @@ namespace StringEquationConverter
                 }
                 else if (s[i] == '(')
                 {
-                    if (temp is not null)
+                    bN++;
+                    if (FFunction.Contains(valueBuilder.ToString()))//if this container is a function call
                     {
-                        curr_cont.AddNode(temp);
-                        temp = null;
+                        tempFuncCont = new FuncContainer(valueBuilder.ToString(), bN-1, curr_cont, tempFuncCont);
+                        enterFunc();
+                        continue;
                     }
-                    var cont = new ContainerNode(curr_cont);
+                    if (tempValue is not null)
+                    {
+                        curr_cont.AddNode(tempValue);
+                        tempValue = null;
+                    }
 
-                    //valueBuilder.IsBuildedValue() -> if the previous node is not an operator
-                    //(e.g. 'x(...)' => 'x*(...)' or '(...)(...)' => '(...)*(...)')
-                    if (valueBuilder.IsBuildedValue())
+                    if (valueBuilder.IsBuildedValue())//x(...) => x*(...)
                     {
                         curr_cont.AddNode(new Multiply());
                         curr_cont.AddNode(GetNode(valueBuilder));
                     }
-                    else if (i > 0 && s[i - 1] == ')')
+                    else if (i > 0 && s[i - 1] == ')')//(...)(...) => (...)*(...)
                     {
                         curr_cont.AddNode(new Multiply());
                     }
-                    curr_cont = cont;
+                    curr_cont = new ContainerNode(curr_cont);
                 }
                 else if (s[i] == ')')
                 {
-                    if (valueBuilder.IsBuildedValue())
-                        curr_cont.AddNode(GetNode(valueBuilder));
-                    else if (curr_cont.IsEmpty())
-                        throw new FInvalidOperationException(i, "Empty container.");
-                    //return from nested container
-                    if (curr_cont.ParentContainer is not null)
+                    bN--;
+                    if (tempFuncCont is not null && tempFuncCont.StartBN == bN)
                     {
-                        if (temp is not null)
+                        leaveFunc();
+                    }
+                    else
+                    {
+                        if (valueBuilder.IsBuildedValue())
+                            curr_cont.AddNode(GetNode(valueBuilder));
+                        //return from nested container
+                        if (curr_cont.ParentContainer is not null)
                         {
-                            curr_cont.AddNode(temp);
+                            if (tempValue is not null)
+                            {
+                                curr_cont.AddNode(tempValue);
+                            }
+                            tempValue = curr_cont;
+                            curr_cont = curr_cont.ParentContainer;
                         }
-                        temp = curr_cont;
-                        curr_cont = curr_cont.ParentContainer;
                     }
                 }
+                else if (s[i] == ',')
+                {
+                    if(tempFuncCont is null)
+                        throw new FInvalidOperationException(i, $"{s[i]}: Syntax error.");
+                    addN();
+                    curr_cont = tempFuncCont.Next();
+                }
+                else if (s[i] == '|')//abs
+                {
+                    if(tempFuncCont is null)
+                    {
+                        if (valueBuilder.IsBuildedValue())//x|...| => x*|...|
+                        {
+                            curr_cont.AddNode(new Multiply());
+                            curr_cont.AddNode(GetNode(valueBuilder));
+                        }
+                        tempFuncCont = new FuncContainer("abs", bN, curr_cont, tempFuncCont);
+                        enterFunc();
+                        bN++;
+                    }
+                    else
+                    {
+                        bN--;
+                        leaveFunc();
+                    }
+                }
+                else
+                    throw new FInvalidOperationException(i, $"'{s[i]}': Syntax error.");
 
                 if (i == s.Length - 1)
                 {
                     addN();
                 }
             }
+
+            var sMpf = Node?.Simplify();
+            if (sMpf is not null)
+                Node = sMpf;
         }
 
-        private TreeNode GetNode(StringBuilder str)
+        private static IFHValue GetNode(StringBuilder str)
         {
-            if (double.TryParse(str.ToString(), out var n))
+            var strVal = str.ToString();
+            str.Clear();
+            if (double.TryParse(strVal, out var n))
             {
-                str.Clear();
-                return new FractionNode(new FFraction(n, null));
+                return new FFraction(n, null);
             }
-            else
-                throw new FArgmentException($"Invalid value: '{str}'.");
+            else if(strVal.ToLower() == "x")
+            {
+                return FVariable.X;
+            }
+            else//variable
+            {
+                var cl = FVariable.UserVars.Where(i => i.Name == strVal).FirstOrDefault();
+                if (cl != null)
+                    return cl;
+            }
+            throw new FArgmentException($"Invalid value: '{strVal}'.");
         }
-
-        //private void AddNode(ContainerNode cont, TreeNode node)
-        //{
-        //    if (node is UnaryOperator)
-        //        throw new InvalidOperationException(nameof(node));
-        //    if (!cont.Nodes.Any())//if the node is the first element in the collection
-        //    {
-        //        cont.Nodes.Add(node);
-        //        return;
-        //    }
-        //    if (cont.Nodes.Last() is UnaryOperator unaryOp)//if the last is an operator
-        //    {
-        //        if (unaryOp.IsEmpty())
-        //        {
-        //            if (unaryOp is BinaryOperator binaryOp)
-        //            {
-        //                if (binaryOp.LeftOperand is null)
-        //                    throw new FInvalidOperationException($"Left operand is empty.");
-        //                binaryOp.RightOperand = node;
-        //            }
-        //            else
-        //            {
-        //                unaryOp.LeftOperand = cont;
-        //            }
-        //            return;
-        //        }
-        //        else
-        //        {
-        //            throw new FInvalidOperationException("Action not found.");
-        //        }
-        //    }
-        //}
     }
 }

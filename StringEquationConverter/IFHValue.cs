@@ -7,8 +7,9 @@ using System.Threading.Tasks;
 
 namespace StringEquationConverter
 {
-    public interface FHValue
+    public interface IFHValue
     {
         public FFraction ToFraction();
+        public FFraction? Simplify();
     }
 }

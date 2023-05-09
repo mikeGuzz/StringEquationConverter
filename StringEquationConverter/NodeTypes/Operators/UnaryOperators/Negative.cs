@@ -12,7 +12,7 @@ namespace StringEquationConverter.NodeTypes.Operators.UnaryOperators
     public class Negative : UnaryOperator
     {
         public Negative() { }
-        public Negative(FHValue left) : base(left) { }
+        public Negative(IFHValue left) : base(left) { }
 
         public override FFraction ToFraction()
         {
